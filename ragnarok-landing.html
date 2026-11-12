@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ragnarök : Serment de Sang — Action-RPG & MMORPG PC | Client gratuit</title>
+<meta name="description" content="Ragnarök : Serment de Sang — l'Action-RPG MMORPG nordique sur PC. Neuf royaumes en monde ouvert, combats divins en temps réel, guerres de guildes 200v200. Téléchargez le client PC gratuitement." />
+<meta name="theme-color" content="#05070B" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:   { 950:'#05070B', 900:'#080B11', 800:'#0E141C', 700:'#161E29', 600:'#22303F' },
+          rune:  { DEFAULT:'#3FC5FF', 300:'#8FE6FF', 400:'#6FD9FF', 600:'#1B93C9', 900:'#082433' },
+          forge: { DEFAULT:'#FF6A16', 300:'#FFB37A', 400:'#FF8A3D', 600:'#D4500A' },
+          bone:  '#E8EDF3'
+        },
+        fontFamily: {
+          display: ['Cinzel','Georgia','serif'],
+          sans: ['Inter','system-ui','-apple-system','Segoe UI','sans-serif']
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  :root{ --rune:#3FC5FF; --forge:#FF6A16; }
+
+  html{ background:#05070B; }
+  body{
+    background-color:#05070B;
+    color:#E8EDF3;
+    font-family:Inter, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ---------- Texture pierre gravée / grain ---------- */
+  .noise-layer::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:70;
+    pointer-events:none;
+    opacity:.055;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+  .stone{
+    background-image:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.022) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(25deg, rgba(255,255,255,.014) 0 1px, transparent 1px 11px);
+  }
+  .grid-lines{
+    background-image:
+      linear-gradient(to right, rgba(63,197,255,.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(63,197,255,.06) 1px, transparent 1px);
+    background-size:72px 72px;
+    mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+    -webkit-mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+  }
+
+  /* ---------- Bordures biseautées (forge / acier) ---------- */
+  .bevel{ clip-path:polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px); }
+  .bevel-sm{ clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
+  .bevel-lg{ clip-path:polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px); }
+
+  /* ---------- Reveal au scroll ---------- */
+  .reveal{ opacity:0; transform:translateY(26px); transition:opacity .75s cubic-bezier(.22,1,.36,1), transform .75s cubic-bezier(.22,1,.36,1); }
+  .reveal.is-in{ opacity:1; transform:none; }
+
+  /* ---------- Accessibilité ---------- */
+  :focus-visible{ outline:2px solid var(--rune); outline-offset:3px; border-radius:2px; }
+  .skip-link:focus{ position:fixed; top:12px; left:12px; z-index:99; width:auto; height:auto; padding:12px 18px; overflow:visible; clip:auto; white-space:normal; }
+
+  /* ---------- Animations ---------- */
+  @keyframes spinSlow{ to{ transform:rotate(360deg); } }
+  @keyframes pulseDot{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.35; transform:scale(.82);} }
+  @keyframes floatY{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-12px);} }
+  .spin-slow{ animation:spinSlow 60s linear infinite; transform-origin:200px 200px; }
+  .spin-rev{ animation:spinSlow 95s linear infinite reverse; transform-origin:200px 200px; }
+  .dot-pulse{ animation:pulseDot 2.4s ease-in-out infinite; }
+  .float-y{ animation:floatY 9s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    .reveal{ opacity:1 !important; transform:none !important; transition:none; }
+    .spin-slow,.spin-rev,.dot-pulse,.float-y{ animation:none !important; }
+  }
+
+  ::selection{ background:rgba(255,106,22,.35); color:#fff; }
+</style>
+</head>
+
+<body class="noise-layer bg-ink-950 text-bone antialiased">
+
+<a href="#main" class="skip-link sr-only">Aller au contenu principal</a>
+
+<!-- ============================================================
+     NAVIGATION STICKY
+============================================================ -->
+<header id="site-nav" class="fixed inset-x-0 top-0 z-50 transition-all duration-300">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
+
+    <a href="#hero" class="group flex items-center gap-3" aria-label="Ragnarök : Serment de Sang — accueil">
+      <span class="relative grid h-10 w-10 place-items-center bevel-sm bg-gradient-to-br from-rune/30 to-forge/20 ring-1 ring-inset ring-rune/30">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="#8FE6FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2v20M12 6l5 4M12 6L7 10M12 14l5 4M12 14l-5 4"/>
+        </svg>
+      </span>
+      <span class="leading-none">
+        <span class="block font-display text-[15px] font-bold tracking-[0.22em] text-bone">RAGNARÖK</span>
+        <span class="mt-1 block text-[9px] font-medium uppercase tracking-[0.34em] text-rune/70">Serment de Sang</span>
+      </span>
+    </a>
+
+    <nav class="hidden items-center gap-9 lg:flex" aria-label="Navigation principale">
+      <a href="#avantages" class="text-[13px] font-medium uppercase tracking-[0.18em] text-slate-400 transition hover:text-rune-300">Avantages</a>
+      <a href="#histoire" class="text-[13px] font-medium uppercase tracking-[0.18em] text-slate-400 transition hover:text-rune-300">L'Histoire</a>
+      <a href="#preuves" class="text-[13px] font-medium uppercase tracking-[0.18em] text-slate-400 transition hover:text-rune-300">Chiffres</a>
+      <a href="#configuration" class="text-[13px] font-medium uppercase tracking-[0.18em] text-slate-400 transition hover:text-rune-300">Configuration</a>
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <a href="#telecharger" class="hidden bevel-sm bg-gradient-to-br from-forge-400 via-forge to-forge-600 px-6 py-2.5 font-display text-[12px] font-bold uppercase tracking-[0.16em] text-ink-950 transition hover:drop-shadow-[0_0_20px_rgba(255,106,22,.6)] sm:block">
+        Jouer gratuitement
+      </a>
+      <button id="menu-btn" type="button" class="grid h-10 w-10 place-items-center bevel-sm ring-1 ring-inset ring-white/10 text-bone lg:hidden" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobile-menu">
+        <svg id="menu-icon-open" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg id="menu-icon-close" viewBox="0 0 24 24" class="hidden h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="hidden border-t border-white/5 bg-ink-950/95 backdrop-blur-xl lg:hidden">
+    <nav class="mx-auto flex max-w-7xl flex-col px-5 py-4" aria-label="Navigation mobile">
+      <a href="#avantages" class="border-b border-white/5 py-3.5 text-sm uppercase tracking-[0.16em] text-slate-300">Avantages</a>
+      <a href="#histoire" class="border-b border-white/5 py-3.5 text-sm uppercase tracking-[0.16em] text-slate-300">L'Histoire</a>
+      <a href="#preuves" class="border-b border-white/5 py-3.5 text-sm uppercase tracking-[0.16em] text-slate-300">Chiffres clés</a>
+      <a href="#configuration" class="border-b border-white/5 py-3.5 text-sm uppercase tracking-[0.16em] text-slate-300">Configuration</a>
+      <a href="#telecharger" class="mt-4 bevel-sm bg-gradient-to-br from-forge-400 to-forge-600 px-5 py-3.5 text-center font-display text-sm font-bold uppercase tracking-[0.14em] text-ink-950">Télécharger le client PC</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============================================================
+     1. HERO
+============================================================ -->
+<section id="hero" class="relative isolate overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-28">
+
+  <!-- fond : brume + lueur de forge -->
+  <div class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute inset-0 grid-lines opacity-70"></div>
+    <div class="absolute -top-40 left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-rune/12 blur-[140px]"></div>
+    <div class="absolute -bottom-56 right-[-10%] h-[520px] w-[680px] rounded-full bg-forge/15 blur-[150px]"></div>
+    <div class="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-ink-950 to-transparent"></div>
+  </div>
+
+  <div class="mx-auto grid max-w-7xl items-center gap-16 px-5 lg:grid-cols-[1.05fr_.95fr] lg:gap-10 lg:px-8">
+
+    <!-- Colonne texte -->
+    <div class="reveal">
+      <!-- eyebrow -->
+      <div class="mb-7 inline-flex items-center gap-2.5 bevel-sm bg-white/[0.03] px-4 py-2 ring-1 ring-inset ring-white/10">
+        <span class="dot-pulse h-1.5 w-1.5 rounded-full bg-forge shadow-[0_0_10px_2px_rgba(255,106,22,.7)]"></span>
+        <span class="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-300">Bêta fermée · Serveurs EU ouverts le 14.02.2027</span>
+      </div>
+
+      <h1 class="font-display text-[2.6rem] font-black uppercase leading-[0.98] tracking-[-0.01em] sm:text-6xl lg:text-[4.35rem]">
+        <span class="block text-bone/95">Le Crépuscule</span>
+        <span class="block bg-gradient-to-r from-rune-300 via-white to-forge-300 bg-clip-text text-transparent">des Dieux</span>
+        <span class="mt-2 block text-bone/95">a commencé.</span>
+      </h1>
+
+      <p class="mt-7 max-w-xl font-display text-lg font-semibold uppercase leading-snug tracking-[0.08em] text-rune-300 sm:text-xl">
+        Serez-vous le sauveur d'Asgard&nbsp;?
+      </p>
+
+      <p class="mt-5 max-w-xl text-[15px] leading-relaxed text-slate-400 sm:text-base">
+        Un monde ouvert sans écran de chargement. Des combats <span class="text-bone">ultra-nerveux</span> à la frame près. Des graphismes <span class="text-bone">4K</span> portés par un moteur maison, jusqu'à 120 fps sur PC.
+        Les Neuf Royaumes n'attendent qu'un nom gravé dans la pierre runique&nbsp;: <span class="text-bone">le vôtre</span>.
+      </p>
+
+      <!-- CTA -->
+      <div class="mt-9 flex flex-col gap-3.5 sm:flex-row sm:items-center">
+        <a href="#telecharger" class="group bevel-sm bg-gradient-to-br from-forge-300 via-forge to-forge-600 px-8 py-4 text-center font-display text-[13px] font-black uppercase tracking-[0.14em] text-ink-950 transition duration-300 hover:drop-shadow-[0_0_30px_rgba(255,106,22,.65)]">
+          <span class="inline-flex items-center gap-2.5">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l4.5-4.5M12 15l-4.5-4.5M4 20h16"/></svg>
+            Télécharger le client PC (gratuit)
+          </span>
+        </a>
+
+        <a href="#telecharger" class="group bevel-sm bg-gradient-to-br from-rune/55 via-rune/15 to-transparent p-px transition duration-300 hover:from-rune hover:drop-shadow-[0_0_26px_rgba(63,197,255,.45)]">
+          <span class="bevel-sm flex items-center justify-center gap-2.5 bg-ink-900 px-7 py-4 font-display text-[13px] font-bold uppercase tracking-[0.14em] text-rune-300">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.4 5.4 5.9.6-4.4 4 1.2 5.8L12 16l-5.1 2.8 1.2-5.8-4.4-4 5.9-.6L12 3z"/></svg>
+            Rejoindre la bêta fermée
+          </span>
+        </a>
+      </div>
+
+      <!-- mention rassurante -->
+      <p class="mt-5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[11.5px] text-slate-500">
+        <span class="inline-flex items-center gap-1.5"><span class="h-1 w-1 rounded-full bg-rune/70"></span>Windows 10/11</span>
+        <span class="text-white/10">|</span>
+        <span>Configuration minimale requise&nbsp;: <span class="text-slate-300">GTX 1060</span></span>
+        <span class="text-white/10">|</span>
+        <span><span class="text-slate-300">5 Go</span> d'espace libre</span>
+        <span class="text-white/10">|</span>
+        <span>Sans abonnement</span>
+      </p>
+
+      <!-- preuve sociale courte -->
+      <div class="mt-8 flex items-center gap-4 border-t border-white/[0.06] pt-6">
+        <div class="flex -space-x-2.5">
+          <span class="grid h-8 w-8 place-items-center bevel-sm bg-gradient-to-br from-rune/40 to-rune-900 font-display text-[10px] font-bold text-rune-300">BR</span>
+          <span class="grid h-8 w-8 place-items-center bevel-sm bg-gradient-to-br from-forge/40 to-ink-800 font-display text-[10px] font-bold text-forge-300">VA</span>
+          <span class="grid h-8 w-8 place-items-center bevel-sm bg-gradient-to-br from-slate-500/40 to-ink-800 font-display text-[10px] font-bold text-slate-300">MR</span>
+          <span class="grid h-8 w-8 place-items-center bevel-sm bg-ink-800 ring-1 ring-inset ring-white/10 text-[10px] font-semibold text-slate-400">+214k</span>
+        </div>
+        <p class="text-[11.5px] leading-tight text-slate-500">
+          <span class="font-semibold text-slate-300">214 000 guerriers</span> ont déjà prêté serment.<br class="hidden sm:block">
+          <span class="text-slate-600">Chiffre de démonstration (voir note en bas de page).</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Colonne visuel : sceau runique -->
+    <div class="reveal relative mx-auto w-full max-w-[520px]" style="transition-delay:140ms">
+      <div class="absolute inset-6 rounded-full bg-rune/10 blur-[70px]"></div>
+      <div class="absolute inset-x-10 bottom-6 h-24 rounded-full bg-forge/15 blur-[60px]"></div>
+
+      <svg viewBox="0 0 400 400" class="relative h-full w-full float-y" role="img" aria-label="Sceau runique : les neuf royaumes reliés à l'Arbre-Monde">
+        <defs>
+          <linearGradient id="gRune" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#BFEFFF"/><stop offset="50%" stop-color="#3FC5FF"/><stop offset="100%" stop-color="#1B93C9"/>
+          </linearGradient>
+          <linearGradient id="gForge" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stop-color="#FF6A16"/><stop offset="100%" stop-color="#FFB37A"/>
+          </linearGradient>
+          <radialGradient id="gCore">
+            <stop offset="0%" stop-color="#BFF0FF" stop-opacity=".55"/>
+            <stop offset="55%" stop-color="#3FC5FF" stop-opacity=".10"/>
+            <stop offset="100%" stop-color="#3FC5FF" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="fGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.2" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <circle cx="200" cy="200" r="196" fill="url(#gCore)"/>
+
+        <!-- anneaux -->
+        <circle cx="200" cy="200" r="186" fill="none" stroke="url(#gRune)" stroke-opacity=".28" stroke-width="1"/>
+        <circle class="spin-rev" cx="200" cy="200" r="172" fill="none" stroke="url(#gRune)" stroke-opacity=".24" stroke-width="12" stroke-dasharray="2.5 39"/>
+        <circle cx="200" cy="200" r="150" fill="none" stroke="url(#gRune)" stroke-opacity=".16" stroke-width="1"/>
+        <circle class="spin-slow" cx="200" cy="200" r="138" fill="none" stroke="url(#gForge)" stroke-opacity=".55" stroke-width="1" stroke-dasharray="70 24 12 24"/>
+        <circle cx="200" cy="200" r="112" fill="none" stroke="#3FC5FF" stroke-opacity=".10" stroke-width="1"/>
+
+        <!-- éclats extérieurs -->
+        <g stroke="url(#gRune)" stroke-opacity=".5" stroke-width="1.4" stroke-linecap="round">
+          <line x1="200" y1="10" x2="200" y2="30"/><line x1="200" y1="370" x2="200" y2="390"/>
+          <line x1="10" y1="200" x2="30" y2="200"/><line x1="370" y1="200" x2="390" y2="200"/>
+        </g>
+
+        <!-- hexagone : Asgard -->
+        <path d="M295 200 L247.5 282.3 L152.5 282.3 L105 200 L152.5 117.7 L247.5 117.7 Z"
+              fill="none" stroke="url(#gRune)" stroke-opacity=".85" stroke-width="1.6" filter="url(#fGlow)"/>
+        <!-- losange intérieur : forge -->
+        <path d="M200 138 L262 200 L200 262 L138 200 Z"
+              fill="none" stroke="url(#gForge)" stroke-opacity=".9" stroke-width="1.4"/>
+
+        <!-- axe Yggdrasil -->
+        <line x1="200" y1="104" x2="200" y2="296" stroke="url(#gRune)" stroke-opacity=".5" stroke-width="1"/>
+        <g fill="#8FE6FF">
+          <rect x="196" y="112" width="8" height="8" transform="rotate(45 200 116)" opacity=".9"/>
+          <rect x="196" y="196" width="8" height="8" transform="rotate(45 200 200)" opacity="1"/>
+          <rect x="196" y="280" width="8" height="8" transform="rotate(45 200 284)" opacity=".9"/>
+        </g>
+        <!-- branches -->
+        <g stroke="url(#gRune)" stroke-opacity=".45" stroke-width="1" fill="none">
+          <path d="M200 148 L168 120 M200 148 L232 120"/>
+          <path d="M200 252 L168 280 M200 252 L232 280"/>
+        </g>
+
+        <circle cx="200" cy="200" r="10" fill="#BFF0FF" opacity=".16"/>
+        <circle cx="200" cy="200" r="4" fill="#E8FBFF" filter="url(#fGlow)"/>
+      </svg>
+
+      <!-- badges flottants -->
+      <div class="absolute -left-2 top-6 bevel-sm bg-ink-900/90 px-3.5 py-2 ring-1 ring-inset ring-rune/25 backdrop-blur">
+        <p class="font-display text-[10px] font-bold uppercase tracking-[0.16em] text-rune-300">4K · 120 fps</p>
+      </div>
+      <div class="absolute -right-1 bottom-10 bevel-sm bg-ink-900/90 px-3.5 py-2 ring-1 ring-inset ring-forge/25 backdrop-blur">
+        <p class="font-display text-[10px] font-bold uppercase tracking-[0.16em] text-forge-300">9 royaumes</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- bandeau plateformes -->
+  <div class="mx-auto mt-16 max-w-7xl px-5 lg:px-8">
+    <div class="reveal flex flex-wrap items-center justify-center gap-x-8 gap-y-4 border-y border-white/[0.06] py-6">
+      <span class="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-600">Disponible sur</span>
+      <span class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Windows 10 / 11</span>
+      <span class="hidden h-3 w-px bg-white/10 sm:block"></span>
+      <span class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Steam</span>
+      <span class="hidden h-3 w-px bg-white/10 sm:block"></span>
+      <span class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Epic Games</span>
+      <span class="hidden h-3 w-px bg-white/10 sm:block"></span>
+      <span class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Manette &amp; clavier-souris</span>
+      <span class="hidden h-3 w-px bg-white/10 sm:block"></span>
+      <span class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cross-save</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     2. AVANTAGES / KEY FEATURES
+============================================================ -->
+<section id="avantages" class="relative border-t border-white/[0.06] py-24 lg:py-32">
+  <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rune/40 to-transparent"></div>
+
+  <div class="mx-auto max-w-7xl px-5 lg:px-8">
+    <div class="reveal max-w-3xl">
+      <p class="mb-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-rune/80">
+        <span class="h-px w-8 bg-rune/60"></span> Ce qui vous attend
+      </p>
+      <h2 class="font-display text-3xl font-black uppercase leading-tight tracking-[-0.01em] text-bone sm:text-4xl lg:text-[2.9rem]">
+        Quatre serments.<br>
+        <span class="text-rune-300">Un seul destin.</span>
+      </h2>
+      <p class="mt-5 text-[15px] leading-relaxed text-slate-400">
+        Ragnarök n'est pas un décor. C'est un champ de bataille où chaque choix laisse une cicatrice dans le monde — et dans la mémoire des autres joueurs.
+      </p>
+    </div>
+
+    <div class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+
+      <!-- Feature 1 -->
+      <article class="reveal group relative bevel stone bg-ink-800/70 p-7 ring-1 ring-inset ring-white/[0.07] transition duration-300 hover:bg-ink-800 hover:ring-rune/40 hover:drop-shadow-[0_0_34px_rgba(63,197,255,.18)]">
+        <span class="absolute right-5 top-5 font-display text-[11px] font-bold tracking-[0.2em] text-white/15 transition group-hover:text-rune/40">01</span>
+        <span class="grid h-12 w-12 place-items-center bevel-sm bg-gradient-to-br from-rune/20 to-transparent ring-1 ring-inset ring-rune/30">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="#8FE6FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14.5 3.5L20.5 9.5L11 19H5v-6l9.5-9.5z"/><path d="M13 5l6 6"/><path d="M4 20l3-3"/>
+          </svg>
+        </span>
+        <h3 class="mt-6 font-display text-[15px] font-bold uppercase tracking-[0.1em] text-bone">Combats épiques en temps réel</h3>
+        <p class="mt-3 text-[13.5px] leading-relaxed text-slate-400">
+          Un système de <span class="text-slate-200">combo à fenêtre serrée</span>, des esquives directionnelles et des compétences divines qui déclenchent des effets de zone dévastateurs. Zéro temps de latence toléré&nbsp;: la réactivité fait la différence entre une saga et une tombe.
+        </p>
+        <ul class="mt-5 space-y-1.5 border-t border-white/[0.07] pt-4 text-[11.5px] uppercase tracking-[0.1em] text-slate-500">
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-rune"></span>Netcode rollback · 128 tick</li>
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-rune"></span>52 compétences par classe</li>
+        </ul>
+      </article>
+
+      <!-- Feature 2 -->
+      <article class="reveal group relative bevel stone bg-ink-800/70 p-7 ring-1 ring-inset ring-white/[0.07] transition duration-300 hover:bg-ink-800 hover:ring-rune/40 hover:drop-shadow-[0_0_34px_rgba(63,197,255,.18)]" style="transition-delay:80ms">
+        <span class="absolute right-5 top-5 font-display text-[11px] font-bold tracking-[0.2em] text-white/15 transition group-hover:text-rune/40">02</span>
+        <span class="grid h-12 w-12 place-items-center bevel-sm bg-gradient-to-br from-rune/20 to-transparent ring-1 ring-inset ring-rune/30">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="#8FE6FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>
+          </svg>
+        </span>
+        <h3 class="mt-6 font-display text-[15px] font-bold uppercase tracking-[0.1em] text-bone">Monde ouvert persistant</h3>
+        <p class="mt-3 text-[13.5px] leading-relaxed text-slate-400">
+          Explorez les <span class="text-slate-200">Neuf Royaumes d'Yggdrasil</span>, de Midgard aux glaces de Niflheim, jusqu'aux portes suintantes de Helheim. Un seul monde, sans écran de chargement, où chaque serveur conserve l'histoire de ses batailles.
+        </p>
+        <ul class="mt-5 space-y-1.5 border-t border-white/[0.07] pt-4 text-[11.5px] uppercase tracking-[0.1em] text-slate-500">
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-rune"></span>9 royaumes · 62 km² contigus</li>
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-rune"></span>Cycles jour/nuit &amp; marées</li>
+        </ul>
+      </article>
+
+      <!-- Feature 3 -->
+      <article class="reveal group relative bevel stone bg-ink-800/70 p-7 ring-1 ring-inset ring-white/[0.07] transition duration-300 hover:bg-ink-800 hover:ring-forge/40 hover:drop-shadow-[0_0_34px_rgba(255,106,22,.16)]" style="transition-delay:160ms">
+        <span class="absolute right-5 top-5 font-display text-[11px] font-bold tracking-[0.2em] text-white/15 transition group-hover:text-forge/40">03</span>
+        <span class="grid h-12 w-12 place-items-center bevel-sm bg-gradient-to-br from-forge/20 to-transparent ring-1 ring-inset ring-forge/30">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="#FFB37A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7.5 3.2v5.4c0 4.4-3.1 8.1-7.5 9.4-4.4-1.3-7.5-5-7.5-9.4V6.2L12 3z"/><path d="M12 8v8M8 12h8"/>
+          </svg>
+        </span>
+        <h3 class="mt-6 font-display text-[15px] font-bold uppercase tracking-[0.1em] text-bone">Classes &amp; personnalisation</h3>
+        <p class="mt-3 text-[13.5px] leading-relaxed text-slate-400">
+          Incarnez un <span class="text-slate-200">Berserker</span> ivre de rage, une <span class="text-slate-200">Valkyrie</span> gardienne des âmes ou un <span class="text-slate-200">Mage des Runes</span> qui plie la réalité. Apparence, serments, arbre de talents&nbsp;: aucun guerrier ne ressemble à un autre.
+        </p>
+        <ul class="mt-5 space-y-1.5 border-t border-white/[0.07] pt-4 text-[11.5px] uppercase tracking-[0.1em] text-slate-500">
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>6 classes · 18 spécialisations</li>
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Transmogrification intégrale</li>
+        </ul>
+      </article>
+
+      <!-- Feature 4 -->
+      <article class="reveal group relative bevel stone bg-ink-800/70 p-7 ring-1 ring-inset ring-white/[0.07] transition duration-300 hover:bg-ink-800 hover:ring-forge/40 hover:drop-shadow-[0_0_34px_rgba(255,106,22,.16)]" style="transition-delay:240ms">
+        <span class="absolute right-5 top-5 font-display text-[11px] font-bold tracking-[0.2em] text-white/15 transition group-hover:text-forge/40">04</span>
+        <span class="grid h-12 w-12 place-items-center bevel-sm bg-gradient-to-br from-forge/20 to-transparent ring-1 ring-inset ring-forge/30">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="#FFB37A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16"/><path d="M9 20v-6h6v6"/><path d="M12 4v4"/>
+          </svg>
+        </span>
+        <h3 class="mt-6 font-display text-[15px] font-bold uppercase tracking-[0.1em] text-bone">Économie joueurs &amp; PvP de masse</h3>
+        <p class="mt-3 text-[13.5px] leading-relaxed text-slate-400">
+          Forgez, commercez, contrôlez. Les guildes se disputent les <span class="text-slate-200">forteresses et leurs péages</span> lors de guerres à 200 contre 200. Celui qui tient le pont tient le monde.
+        </p>
+        <ul class="mt-5 space-y-1.5 border-t border-white/[0.07] pt-4 text-[11.5px] uppercase tracking-[0.1em] text-slate-500">
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Hôtel des ventes 100 % joueurs</li>
+          <li class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Sièges de guilde · 200v200</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     3. HISTOIRE / LORE
+============================================================ -->
+<section id="histoire" class="relative overflow-hidden border-t border-white/[0.06] py-24 lg:py-32">
+
+  <div class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute left-[-15%] top-1/3 h-[520px] w-[620px] rounded-full bg-forge/[0.09] blur-[150px]"></div>
+    <div class="absolute right-[-10%] top-0 h-[420px] w-[520px] rounded-full bg-rune/[0.07] blur-[140px]"></div>
+  </div>
+
+  <div class="mx-auto grid max-w-7xl gap-14 px-5 lg:grid-cols-[.85fr_1.15fr] lg:gap-20 lg:px-8">
+
+    <!-- Colonne gauche : titre + chronologie runique -->
+    <div class="reveal lg:sticky lg:top-28 lg:self-start">
+      <p class="mb-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-forge/80">
+        <span class="h-px w-8 bg-forge/60"></span> Le Lore
+      </p>
+      <h2 class="font-display text-3xl font-black uppercase leading-[1.05] tracking-[-0.01em] text-bone sm:text-4xl lg:text-[2.9rem]">
+        Le ciel s'est<br>refermé sur<br><span class="text-forge-300">Midgard.</span>
+      </h2>
+      <p class="mt-6 max-w-sm text-[13.5px] leading-relaxed text-slate-500">
+        Trois hivers sans été. Un arbre qui saigne. Un dieu qui sourit trop.
+      </p>
+
+      <!-- chronologie -->
+      <ol class="mt-10 space-y-7 border-l border-white/10 pl-6">
+        <li class="relative">
+          <span class="absolute -left-[30px] top-1 grid h-3 w-3 place-items-center bg-ink-950 ring-1 ring-rune/60"><span class="h-1 w-1 bg-rune"></span></span>
+          <p class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-rune-300">I. Fimbulwinter</p>
+          <p class="mt-1.5 text-[13px] leading-relaxed text-slate-400">La neige ne fond plus. Les récoltes pourrissent sous la glace, les loups descendent des montagnes.</p>
+        </li>
+        <li class="relative">
+          <span class="absolute -left-[30px] top-1 grid h-3 w-3 place-items-center bg-ink-950 ring-1 ring-forge/60"><span class="h-1 w-1 bg-forge"></span></span>
+          <p class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-forge-300">II. La trahison</p>
+          <p class="mt-1.5 text-[13px] leading-relaxed text-slate-400">Loki brise le serment de sang. Le loup Fenrir ronge ses chaînes dans l'ombre.</p>
+        </li>
+        <li class="relative">
+          <span class="absolute -left-[30px] top-1 grid h-3 w-3 place-items-center bg-ink-950 ring-1 ring-white/30"><span class="h-1 w-1 bg-white/60"></span></span>
+          <p class="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-slate-300">III. L'éveil</p>
+          <p class="mt-1.5 text-[13px] leading-relaxed text-slate-400">Les morts de Helheim remontent. Yggdrasil gémit. Les dieux ont besoin de mortels.</p>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Colonne droite : texte narratif -->
+    <div class="reveal" style="transition-delay:120ms">
+      <div class="bevel-lg stone bg-gradient-to-b from-ink-800/80 to-ink-900/90 p-8 ring-1 ring-inset ring-white/[0.08] sm:p-12">
+
+        <p class="font-display text-lg font-semibold leading-relaxed text-bone/95 sm:text-xl">
+          «&nbsp;Le troisième hiver n'a jamais pris fin.&nbsp;»
+        </p>
+
+        <div class="mt-6 space-y-5 text-[14.5px] leading-[1.85] text-slate-400">
+          <p>
+            Dans les villages de Midgard, on ne parle plus du soleil&nbsp;: on parle des <span class="text-bone">rations</span>. Le Fimbulwinter a gelé les rivières jusqu'à la racine du monde, et les prêtres d'Odin ont cessé de mentir. Les corbeaux ne reviennent plus. Les runes, elles, se sont mises à <span class="text-rune-300">brûler</span>.
+          </p>
+          <p>
+            Car Loki a rompu le serment de sang. Trois gouttes sur la pierre, un sourire, et les sceaux d'Helheim se sont ouverts. Ce qui remonte n'est pas une armée&nbsp;: c'est une <span class="text-bone">marée</span>. Draugr aux yeux de braise, géants de givre qui marchent sans bruit, et derrière eux, Fenrir — dont la chaîne, dit-on, ne tient plus qu'à un fil de prière.
+          </p>
+          <p>
+            Asgard ne vous enverra aucun héros. Les héros, c'est ce qui manque. Alors les dieux font ce qu'ils savent faire de mieux&nbsp;: ils <span class="text-forge-300">promettent</span>. Une place au Valhalla, un nom gravé dans l'écorce d'Yggdrasil, et le droit de choisir quel royaume brûlera en premier.
+          </p>
+          <p class="border-l-2 border-forge/60 pl-5 font-medium text-slate-300">
+            Vous n'êtes pas né pour sauver le monde. Vous êtes né pour décider de ce qu'il en restera.
+          </p>
+        </div>
+
+        <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-white/[0.08] pt-6 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+          <span class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Campagne solo · 40 h</span>
+          <span class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Doublage VF intégral</span>
+          <span class="flex items-center gap-2"><span class="h-1 w-1 bg-forge"></span>Choix persistants</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     4. RECOMPENSES / SOCIAL PROOF / CHIFFRES CLÉS
+     NOTE : chiffres, citations presse et classements ci-dessous sont
+     des PLACEHOLDERS FICTIFS créés pour cette maquette. Aucune
+     affiliation avec IGN, PC Gamer ou GamesRadar.
+============================================================ -->
+<section id="preuves" class="relative border-t border-white/[0.06] py-20 lg:py-28">
+
+  <div class="mx-auto max-w-7xl px-5 lg:px-8">
+
+    <!-- bandeau chiffres -->
+    <div class="reveal grid gap-px overflow-hidden bevel bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-4">
+
+      <div class="stone bg-ink-900 px-7 py-9 text-center">
+        <p class="font-display text-3xl font-black tracking-tight text-rune-300 lg:text-4xl">214&nbsp;K</p>
+        <p class="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Serments de bêta</p>
+      </div>
+
+      <div class="stone bg-ink-900 px-7 py-9 text-center">
+        <p class="font-display text-3xl font-black tracking-tight text-forge-300 lg:text-4xl">62&nbsp;km²</p>
+        <p class="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Monde contigu</p>
+      </div>
+
+      <div class="stone bg-ink-900 px-7 py-9 text-center">
+        <p class="font-display text-3xl font-black tracking-tight text-rune-300 lg:text-4xl">9</p>
+        <p class="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Royaumes d'Yggdrasil</p>
+      </div>
+
+      <div class="stone bg-ink-900 px-7 py-9 text-center">
+        <p class="font-display text-3xl font-black tracking-tight text-forge-300 lg:text-4xl">200<span class="text-xl">v</span>200</p>
+        <p class="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Guerres de guildes</p>
+      </div>
+    </div>
+
+    <!-- citations presse -->
+    <div class="mt-6 grid gap-5 lg:grid-cols-3">
+
+      <figure class="reveal bevel stone flex flex-col justify-between bg-ink-800/60 p-7 ring-1 ring-inset ring-white/[0.07]">
+        <div>
+          <div class="mb-4 flex gap-0.5 text-forge" aria-label="Note : 5 sur 5">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+          </div>
+          <blockquote class="font-display text-base font-semibold leading-relaxed text-bone/95">
+            «&nbsp;Le RPG le plus attendu de 2027.&nbsp;»
+          </blockquote>
+        </div>
+        <figcaption class="mt-6 flex items-center justify-between border-t border-white/[0.07] pt-4">
+          <span class="font-display text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">IGN</span>
+          <span class="text-[9px] uppercase tracking-[0.14em] text-slate-700">Citation fictive</span>
+        </figcaption>
+      </figure>
+
+      <figure class="reveal bevel stone flex flex-col justify-between bg-ink-800/60 p-7 ring-1 ring-inset ring-white/[0.07]" style="transition-delay:80ms">
+        <div>
+          <div class="mb-4 flex gap-0.5 text-forge" aria-label="Note : 5 sur 5">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+          </div>
+          <blockquote class="font-display text-base font-semibold leading-relaxed text-bone/95">
+            «&nbsp;Des graphismes à couper le souffle.&nbsp;»
+          </blockquote>
+        </div>
+        <figcaption class="mt-6 flex items-center justify-between border-t border-white/[0.07] pt-4">
+          <span class="font-display text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">PC Gamer</span>
+          <span class="text-[9px] uppercase tracking-[0.14em] text-slate-700">Citation fictive</span>
+        </figcaption>
+      </figure>
+
+      <figure class="reveal bevel stone flex flex-col justify-between bg-ink-800/60 p-7 ring-1 ring-inset ring-white/[0.07]" style="transition-delay:160ms">
+        <div>
+          <div class="mb-4 flex gap-0.5 text-forge" aria-label="Note : 4 sur 5">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 2l3 6.6 7 .7-5.3 4.8 1.5 7L12 17.6 5.8 21l1.5-7L2 9.3l7-.7L12 2z"/></svg>
+          </div>
+          <blockquote class="font-display text-base font-semibold leading-relaxed text-bone/95">
+            «&nbsp;Le PvP de masse que le genre attendait depuis dix ans.&nbsp;»
+          </blockquote>
+        </div>
+        <figcaption class="mt-6 flex items-center justify-between border-t border-white/[0.07] pt-4">
+          <span class="font-display text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">GamesRadar+</span>
+          <span class="text-[9px] uppercase tracking-[0.14em] text-slate-700">Citation fictive</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- récompenses de pré-inscription -->
+    <div class="reveal mt-14 overflow-hidden bevel-lg bg-gradient-to-br from-forge/12 via-ink-900 to-rune/10 p-px">
+      <div class="bevel-lg stone bg-ink-900/95 px-7 py-9 sm:px-10">
+        <div class="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div class="max-w-xl">
+            <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-forge/80">Récompenses de pré-inscription</p>
+            <h3 class="font-display text-2xl font-black uppercase leading-tight text-bone sm:text-[1.7rem]">
+              Prêtez serment avant l'ouverture.<br><span class="text-forge-300">Que les autres le regrettent.</span>
+            </h3>
+            <p class="mt-4 text-[13.5px] leading-relaxed text-slate-400">
+              Toute inscription à la bêta fermée débloque la monture <span class="text-slate-200">Sleipnir d'Ombre</span>, l'arme cosmétique <span class="text-slate-200">Lame de Fimbulwinter</span> et 72 h d'accès anticipé — envoyés automatiquement sur votre compte à la sortie.
+            </p>
+          </div>
+
+          <div class="flex shrink-0 flex-col items-start gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
+            <div class="flex items-center gap-2.5 bevel-sm bg-white/[0.04] px-4 py-2.5 ring-1 ring-inset ring-white/10">
+              <span class="dot-pulse h-1.5 w-1.5 rounded-full bg-rune"></span>
+              <span class="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-slate-300">Places restantes&nbsp;: 6&nbsp;412</span>
+            </div>
+            <a href="#telecharger" class="bevel-sm bg-gradient-to-br from-forge-300 to-forge-600 px-6 py-3 font-display text-[12px] font-black uppercase tracking-[0.14em] text-ink-950 transition hover:drop-shadow-[0_0_24px_rgba(255,106,22,.6)]">
+              Réclamer mon accès
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     5. CONFIGURATION PC REQUISE
+============================================================ -->
+<section id="configuration" class="relative border-t border-white/[0.06] py-24 lg:py-32">
+  <div class="pointer-events-none absolute inset-0 -z-10 grid-lines opacity-40"></div>
+
+  <div class="mx-auto max-w-6xl px-5 lg:px-8">
+    <div class="reveal mx-auto max-w-2xl text-center">
+      <p class="mb-4 flex items-center justify-center gap-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-rune/80">
+        <span class="h-px w-8 bg-rune/50"></span> Configuration PC <span class="h-px w-8 bg-rune/50"></span>
+      </p>
+      <h2 class="font-display text-3xl font-black uppercase leading-tight text-bone sm:text-4xl">
+        Votre machine tiendra-t-elle<span class="text-rune-300"> l'hiver&nbsp;?</span>
+      </h2>
+      <p class="mt-4 text-[14px] leading-relaxed text-slate-400">
+        De la GTX 1060 d'antan aux cartes de nouvelle génération&nbsp;: Ragnarök tourne sur du matériel honnête et récompense le matériel ambitieux. Voici les deux seuils à connaître.
+      </p>
+    </div>
+
+    <!-- Tableau comparatif -->
+    <div class="reveal mt-12 overflow-hidden bevel-lg ring-1 ring-inset ring-white/[0.08]">
+      <table class="w-full border-collapse text-left">
+        <caption class="sr-only">Configuration PC minimale et recommandée pour Ragnarök : Serment de Sang</caption>
+        <thead>
+          <tr class="bg-ink-800">
+            <th scope="col" class="w-[26%] px-5 py-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:px-7">Composant</th>
+            <th scope="col" class="w-[37%] border-l border-white/[0.07] px-5 py-5 sm:px-7">
+              <span class="block font-display text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Configuration minimale</span>
+              <span class="mt-1 block text-[10px] uppercase tracking-[0.14em] text-slate-600">1080p · 30 fps · Qualité Basse</span>
+            </th>
+            <th scope="col" class="w-[37%] border-l border-forge/25 bg-forge/[0.07] px-5 py-5 sm:px-7">
+              <span class="block font-display text-[11px] font-bold uppercase tracking-[0.18em] text-forge-300">Configuration recommandée</span>
+              <span class="mt-1 block text-[10px] uppercase tracking-[0.14em] text-forge/50">1440p · 60 fps · Qualité Élevée</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="text-[13.5px]">
+          <tr class="border-t border-white/[0.07] bg-ink-900/60">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Système</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">Windows 10 64 bits</td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">Windows 11 64 bits</td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/30">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Processeur (CPU)</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">Intel Core i5-8400<br><span class="text-slate-500">ou AMD Ryzen 5 2600</span></td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">Intel Core i7-12700K<br><span class="text-slate-400">ou AMD Ryzen 7 5800X3D</span></td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/60">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Carte graphique (GPU)</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">NVIDIA GTX 1060 6 Go<br><span class="text-slate-500">ou AMD RX 580 8 Go</span></td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">NVIDIA RTX 4070<br><span class="text-slate-400">ou AMD RX 7800 XT</span></td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/30">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Mémoire (RAM)</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">12 Go</td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">32 Go DDR5</td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/60">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Espace disque</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">5 Go disponibles<br><span class="text-slate-500">Client de base · HDD accepté</span></td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">90 Go SSD NVMe<br><span class="text-slate-400">Assets 4K complets</span></td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/30">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">DirectX</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">Version 12</td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">Version 12 Ultimate</td>
+          </tr>
+          <tr class="border-t border-white/[0.07] bg-ink-900/60">
+            <th scope="row" class="px-5 py-5 align-top font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:px-7">Connexion</th>
+            <td class="border-l border-white/[0.07] px-5 py-5 align-top text-slate-300 sm:px-7">ADSL 8 Mb/s</td>
+            <td class="border-l border-forge/20 bg-forge/[0.04] px-5 py-5 align-top text-bone sm:px-7">Fibre 50 Mb/s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="reveal mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[11px] text-slate-600">
+      <span>Le client de base (5 Go) suffit pour la bêta fermée.</span>
+      <span class="text-white/10">·</span>
+      <a href="#telecharger" class="text-rune/80 underline decoration-rune/30 underline-offset-4 transition hover:text-rune-300">Télécharger maintenant</a>
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     6. CTA FINAL
+============================================================ -->
+<section id="telecharger" class="relative overflow-hidden border-t border-white/[0.06] py-24 lg:py-32">
+  <div class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute left-1/2 top-1/2 h-[760px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-forge/[0.10] blur-[160px]"></div>
+    <div class="absolute left-1/3 top-0 h-[380px] w-[520px] rounded-full bg-rune/[0.08] blur-[130px]"></div>
+  </div>
+
+  <div class="mx-auto max-w-3xl px-5 text-center lg:px-8">
+    <div class="reveal">
+      <p class="mb-6 flex items-center justify-center gap-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-forge/80">
+        <span class="h-px w-8 bg-forge/50"></span> Dernier appel <span class="h-px w-8 bg-forge/50"></span>
+      </p>
+
+      <h2 class="font-display text-[2.1rem] font-black uppercase leading-[1.03] tracking-[-0.01em] text-bone sm:text-5xl">
+        Les dieux ont déjà<br>
+        <span class="bg-gradient-to-r from-forge-300 via-white to-rune-300 bg-clip-text text-transparent">choisi leur camp.</span>
+      </h2>
+
+      <p class="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-slate-400">
+        Il vous reste une décision&nbsp;: regarder le monde brûler depuis le rivage, ou tenir une lame sur le pont de Bifröst. <span class="text-bone">Le téléchargement est gratuit, sans abonnement, et prend moins de quatre minutes.</span>
+      </p>
+
+      <div class="mt-9 flex flex-col items-center justify-center gap-3.5 sm:flex-row">
+        <a href="#" class="group bevel-sm w-full bg-gradient-to-br from-forge-300 via-forge to-forge-600 px-9 py-[18px] font-display text-[13px] font-black uppercase tracking-[0.14em] text-ink-950 transition duration-300 hover:drop-shadow-[0_0_34px_rgba(255,106,22,.7)] sm:w-auto">
+          <span class="inline-flex items-center justify-center gap-2.5">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l4.5-4.5M12 15l-4.5-4.5M4 20h16"/></svg>
+            Télécharger le client PC (gratuit)
+          </span>
+        </a>
+        <a href="#" class="bevel-sm w-full bg-gradient-to-br from-rune/55 via-rune/15 to-transparent p-px transition hover:from-rune sm:w-auto">
+          <span class="bevel-sm flex items-center justify-center gap-2.5 bg-ink-900 px-8 py-4 font-display text-[13px] font-bold uppercase tracking-[0.14em] text-rune-300">
+            Rejoindre la bêta fermée
+          </span>
+        </a>
+      </div>
+
+      <p class="mt-6 text-[11.5px] text-slate-500">
+        Windows 10/11 · GTX 1060 minimum · 5 Go d'espace libre · Sans abonnement
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 border-t border-white/[0.06] pt-8 text-[11px] uppercase tracking-[0.14em] text-slate-600">
+        <span class="flex items-center gap-2"><svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-rune/70" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Aucune carte bancaire</span>
+        <span class="flex items-center gap-2"><svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-rune/70" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Sans pay-to-win</span>
+        <span class="flex items-center gap-2"><svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-rune/70" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Serveurs EU</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+<footer class="relative border-t border-white/[0.07] bg-ink-950">
+  <div class="mx-auto max-w-7xl px-5 py-14 lg:px-8">
+
+    <div class="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr] lg:gap-16">
+
+      <!-- marque -->
+      <div>
+        <a href="#hero" class="flex items-center gap-3" aria-label="Retour en haut">
+          <span class="grid h-9 w-9 place-items-center bevel-sm bg-gradient-to-br from-rune/25 to-forge/15 ring-1 ring-inset ring-rune/25">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="#8FE6FF" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 2v20M12 6l5 4M12 6L7 10M12 14l5 4M12 14l-5 4"/></svg>
+          </span>
+          <span>
+            <span class="block font-display text-[13px] font-bold tracking-[0.2em] text-bone">RAGNARÖK</span>
+            <span class="mt-0.5 block text-[9px] uppercase tracking-[0.3em] text-rune/60">Serment de Sang</span>
+          </span>
+        </a>
+
+        <p class="mt-5 max-w-xs text-[12.5px] leading-relaxed text-slate-500">
+          Action-RPG MMORPG mythologique nordique. Développé par un studio fictif pour cette démonstration de page de destination.
+        </p>
+
+        <!-- réseaux -->
+        <div class="mt-6 flex gap-2.5">
+          <a href="#" class="grid h-10 w-10 place-items-center bevel-sm bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] text-slate-400 transition hover:bg-rune/15 hover:text-rune-300 hover:ring-rune/40" aria-label="Rejoindre le Discord officiel">
+            <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true"><path d="M19.6 5.6A16 16 0 0015.7 4.4l-.3.6a12 12 0 00-6.8 0l-.3-.6A16 16 0 004.4 5.6C2.2 8.9 1.6 12.2 1.9 15.4a16 16 0 004.9 2.5l.6-1a10 10 0 01-1.7-.8l.4-.3a11.4 11.4 0 009.8 0l.4.3a10 10 0 01-1.7.8l.6 1a16 16 0 004.9-2.5c.4-3.8-.5-7-2.5-9.8zM8.7 13.5c-1 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.8.9 1.7 1.9c0 1-.7 1.9-1.7 1.9zm6.6 0c-1 0-1.7-.9-1.7-1.9s.7-1.9 1.7-1.9 1.8.9 1.7 1.9c0 1-.7 1.9-1.7 1.9z"/></svg>
+          </a>
+          <a href="#" class="grid h-10 w-10 place-items-center bevel-sm bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] text-slate-400 transition hover:bg-rune/15 hover:text-rune-300 hover:ring-rune/40" aria-label="Suivre sur X (Twitter)">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.1L4.8 21H1.6l7.5-8.6L1.2 3h6.6l4.5 5.6L17.5 3zm-1.1 16h1.8L7.7 4.9H5.8L16.4 19z"/></svg>
+          </a>
+          <a href="#" class="grid h-10 w-10 place-items-center bevel-sm bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] text-slate-400 transition hover:bg-forge/15 hover:text-forge-300 hover:ring-forge/40" aria-label="Voir la chaîne YouTube">
+            <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true"><path d="M21.6 7.2a2.6 2.6 0 00-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.6 2.6 0 002.4 7.2C2 8.8 2 12 2 12s0 3.2.4 4.8a2.6 2.6 0 001.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.6 2.6 0 001.8-1.8c.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8zM10 15.2V8.8L15.5 12 10 15.2z"/></svg>
+          </a>
+          <a href="#" class="grid h-10 w-10 place-items-center bevel-sm bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] text-slate-400 transition hover:bg-rune/15 hover:text-rune-300 hover:ring-rune/40" aria-label="Voir les vidéos Twitch">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M4 3l-1.5 3.5V19h4v3h3l3-3h4l4-4V3H4zm15 10.5l-2.5 2.5h-4l-3 3v-3H6V5h13v8.5z"/><path d="M11.5 8h2v5h-2zM16 8h2v5h-2z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- liens 1 -->
+      <nav aria-label="Liens du jeu">
+        <p class="font-display text-[10px] font-bold uppercase tracking-[0.24em] text-slate-300">Le jeu</p>
+        <ul class="mt-5 space-y-3 text-[12.5px] text-slate-500">
+          <li><a href="#avantages" class="transition hover:text-rune-300">Avantages</a></li>
+          <li><a href="#histoire" class="transition hover:text-rune-300">L'Histoire</a></li>
+          <li><a href="#configuration" class="transition hover:text-rune-300">Configuration PC</a></li>
+          <li><a href="#preuves" class="transition hover:text-rune-300">Presse &amp; chiffres</a></li>
+          <li><a href="#telecharger" class="transition hover:text-rune-300">Télécharger</a></li>
+        </ul>
+      </nav>
+
+      <!-- liens 2 -->
+      <nav aria-label="Liens légaux et support">
+        <p class="font-display text-[10px] font-bold uppercase tracking-[0.24em] text-slate-300">Communauté</p>
+        <ul class="mt-5 space-y-3 text-[12.5px] text-slate-500">
+          <li><a href="#" class="transition hover:text-rune-300">Support technique</a></li>
+          <li><a href="#" class="transition hover:text-rune-300">Mentions légales</a></li>
+          <li><a href="#" class="transition hover:text-rune-300">Politique de confidentialité</a></li>
+          <li><a href="#" class="transition hover:text-rune-300">Conditions d'utilisation</a></li>
+          <li><a href="#" class="transition hover:text-rune-300">Cookies</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <!-- barre du bas -->
+    <div class="mt-14 flex flex-col gap-6 border-t border-white/[0.07] pt-8 md:flex-row md:items-center md:justify-between">
+
+      <div class="flex items-center gap-5">
+        <!-- Badge PEGI 16 recréé en CSS (non officiel) -->
+        <div class="relative flex h-16 shrink-0 flex-col overflow-hidden bevel-sm ring-1 ring-inset ring-white/15" style="width:52px" aria-label="Classification indicative PEGI 16">
+          <div class="flex flex-1 items-center justify-center bg-[#1a1a1a]">
+            <span class="font-display text-xl font-black leading-none text-white">16</span>
+          </div>
+          <div class="bg-[#ffc90e] py-1 text-center">
+            <span class="block text-[6.5px] font-black uppercase leading-none tracking-[0.12em] text-black">PEGI</span>
+          </div>
+        </div>
+
+        <div class="max-w-md">
+          <p class="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-400">Classification indicative&nbsp;: PEGI 16</p>
+          <p class="mt-1 text-[10.5px] leading-relaxed text-slate-600">
+            Violence modérée, sang stylisé, interactions en ligne non modérées. Badge recréé ici à titre illustratif — la classification officielle doit être obtenue auprès de PEGI.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10.5px] uppercase tracking-[0.14em] text-slate-600">
+        <span>©&nbsp;2027 Studio Fimbulwinter</span>
+        <span class="text-white/10">|</span>
+        <span>Tous droits réservés</span>
+        <span class="text-white/10">|</span>
+        <button type="button" id="to-top" class="transition hover:text-rune-300">Haut de page ↑</button>
+      </div>
+    </div>
+
+    <!-- disclaimer maquette -->
+    <p class="mt-8 border-t border-white/[0.05] pt-6 text-[10px] leading-relaxed text-slate-700">
+      <strong class="font-semibold text-slate-600">Note de démonstration&nbsp;:</strong> «&nbsp;Ragnarök&nbsp;: Serment de Sang&nbsp;», le studio Fimbulwinter, l'ensemble des chiffres (214&nbsp;000 inscrits, 62&nbsp;km², places restantes), les récompenses de pré-inscription et les citations attribuées à IGN, PC Gamer et GamesRadar+ sont des contenus <em>fictifs</em> créés pour cette maquette de landing page. Aucune affiliation, partenariat ou couverture presse réelle n'est sous-entendue. Les citations presse et les statistiques doivent être remplacées par des données vérifiées avant toute mise en ligne commerciale.
+    </p>
+  </div>
+</footer>
+
+<script>
+  /* --------- Nav sticky : fond au scroll --------- */
+  (function () {
+    var nav = document.getElementById('site-nav');
+    var onScroll = function () {
+      if (window.scrollY > 24) {
+        nav.classList.add('bg-ink-950/88', 'backdrop-blur-xl', 'border-b', 'border-white/[0.07]');
+      } else {
+        nav.classList.remove('bg-ink-950/88', 'backdrop-blur-xl', 'border-b', 'border-white/[0.07]');
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+
+  /* --------- Menu mobile --------- */
+  (function () {
+    var btn = document.getElementById('menu-btn');
+    var menu = document.getElementById('mobile-menu');
+    var iconOpen = document.getElementById('menu-icon-open');
+    var iconClose = document.getElementById('menu-icon-close');
+
+    var close = function () {
+      menu.classList.add('hidden');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Ouvrir le menu');
+      iconOpen.classList.remove('hidden');
+      iconClose.classList.add('hidden');
+    };
+
+    btn.addEventListener('click', function () {
+      var isClosed = menu.classList.contains('hidden');
+      if (isClosed) {
+        menu.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        btn.setAttribute('aria-label', 'Fermer le menu');
+        iconOpen.classList.add('hidden');
+        iconClose.classList.remove('hidden');
+      } else {
+        close();
+      }
+    });
+
+    menu.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', close);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') close();
+    });
+  })();
+
+  /* --------- Reveal au scroll --------- */
+  (function () {
+    var items = document.querySelectorAll('.reveal');
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduce || !('IntersectionObserver' in window)) {
+      items.forEach(function (el) { el.classList.add('is-in'); });
+      return;
+    }
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -60px 0px' });
+
+    items.forEach(function (el) { io.observe(el); });
+  })();
+
+  /* --------- Retour en haut --------- */
+  document.getElementById('to-top').addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+
+</main>
+</body>
+</html>
